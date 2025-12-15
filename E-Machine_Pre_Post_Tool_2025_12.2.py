@@ -600,154 +600,141 @@ class PostProcessingWidget(QWidget):
     def __init__(self, main_window):
         super().__init__()
         self.main_window = main_window
-        self.layout = QHBoxLayout(self);
-        self.layout.setContentsMargins(15, 15, 15, 15);
+        self.layout = QHBoxLayout(self)
+        self.layout.setContentsMargins(15, 15, 15, 15)
         self.layout.setSpacing(15)
-        self.y_axis_metric = 'Magnitude (MPa)';
-        self.y_log_scale = True;
+
+        # Initialize data attributes first
+        self.y_axis_metric = 'Magnitude (MPa)'
+        self.y_log_scale = True
         self.is_rms_selected = False
-        self.shared_sensors = [];
-        self.axis_edits = {};
+        self.shared_sensors = []
+        self.axis_edits = {}
+
+        # Initialize UI components in order
         self.file_manager = LoadedFileManager(self)
-        self.canvas = None
         self._setup_plotting_area()
-        self._setup_right_sidebar()
-        self.layout.addWidget(self.plot_area, 1);
+        self._setup_right_sidebar()  # This now initializes checklist_layout
+
+        self.layout.addWidget(self.plot_area, 1)
         self.layout.addWidget(self.sidebar_right)
+
         self.set_metric_button_state('Magnitude (MPa)', initial=True)
-        self.update_ui_elements(enable_controls=False)
+        self.update_ui_elements(enable_controls=False)  # Now safe to call
 
     def _setup_plotting_area(self):
         self.plot_area = QWidget()
-        self.layout_left = QVBoxLayout(self.plot_area);
-        self.layout_left.setSpacing(15);
-        self.layout_left.setContentsMargins(0, 0, 0, 0)
-        plot_frame = QFrame();
+        layout_left = QVBoxLayout(self.plot_area)
+        layout_left.setSpacing(15)
+        layout_left.setContentsMargins(0, 0, 0, 0)
+
+        plot_frame = QFrame()
         plot_frame.setObjectName("PlotFrame")
-        plot_frame_layout = QVBoxLayout(plot_frame);
+        plot_frame_layout = QVBoxLayout(plot_frame)
         plot_frame_layout.setContentsMargins(5, 5, 5, 5)
-        self.canvas = PlotCanvas(plot_frame, is_dark_mode=self.main_window.is_dark_mode);
+
+        self.canvas = PlotCanvas(plot_frame, is_dark_mode=self.main_window.is_dark_mode)
         self.canvas.plotting_widget = self
         self.canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        plot_frame_layout.addWidget(self.canvas);
-        self.layout_left.addWidget(plot_frame, 1)
+
+        plot_frame_layout.addWidget(self.canvas)
+        layout_left.addWidget(plot_frame, 1)
 
     def _setup_right_sidebar(self):
-        self.sidebar_right = QWidget();
-        self.sidebar_right.setFixedWidth(280);
+        self.sidebar_right = QWidget()
+        self.sidebar_right.setFixedWidth(220)  # Narrow Gmail style
         self.sidebar_right.setObjectName("PlotOptionsSidebar")
-        self.scroll_area = QScrollArea();
-        self.scroll_area.setWidgetResizable(True);
-        self.scroll_area.setFrameShape(QFrame.Shape.NoFrame);
-        self.scroll_area.setObjectName("ControlScrollArea")
-        scroll_content = QWidget()
-        self.layout_right = QVBoxLayout(scroll_content);
-        self.layout_right.setSpacing(15);
-        self.layout_right.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.layout_right.setContentsMargins(10, 10, 10, 10)
 
-        sidebar_title = QLabel("Plot Options");
-        sidebar_title.setFont(QFont('Segoe UI', 12, QFont.Weight.Bold));
-        sidebar_title.setObjectName("SidebarTitle")
+        sidebar_vbox = QVBoxLayout(self.sidebar_right)
+        sidebar_vbox.setContentsMargins(0, 0, 0, 0)
+
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll_area.setObjectName("ControlScrollArea")
+
+        scroll_content = QWidget()
+        self.layout_right = QVBoxLayout(scroll_content)
+        self.layout_right.setSpacing(10)
+        self.layout_right.setContentsMargins(8, 8, 8, 8)
+        self.layout_right.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        sidebar_title = QLabel("Plot Options")
+        sidebar_title.setStyleSheet("font-weight: 600; color: #1F1F1F; margin-bottom: 5px;")
         self.layout_right.addWidget(sidebar_title)
 
-        group_file = QGroupBox("Compare Files");
-        group_file.setObjectName("FlatGroupBox")
-        layout_file = QVBoxLayout(group_file);
-        layout_file.setContentsMargins(10, 10, 10, 10);
-        layout_file.addWidget(self.file_manager)
-        self.layout_right.addWidget(group_file)
+        # 1. Metric Selection
+        group_metric = QGroupBox("Metric")
+        group_metric.setObjectName("CompactGroupBox")
+        layout_metric = QVBoxLayout(group_metric)
+        layout_metric.setContentsMargins(6, 12, 6, 6)
 
-        group_checklist = QGroupBox("Sensor to Plot");
-        group_checklist.setObjectName("FlatGroupBox")
-        self.checklist_layout = QVBoxLayout();
-        self.checklist_layout.setAlignment(Qt.AlignmentFlag.AlignTop);
-        self.checklist_layout.setContentsMargins(10, 10, 10, 10)
-        self.checklist_widget = QWidget();
-        self.checklist_widget.setLayout(self.checklist_layout)
-        self.sensor_scroll_area = QScrollArea();
-        self.sensor_scroll_area.setWidgetResizable(True);
-        self.sensor_scroll_area.setWidget(self.checklist_widget)
-        self.sensor_scroll_area.setFrameShape(QFrame.Shape.NoFrame);
-        self.sensor_scroll_area.setObjectName("SensorScrollArea")
-        group_checklist.setLayout(QVBoxLayout());
-        group_checklist.layout().setContentsMargins(0, 0, 0, 0)
-        group_checklist.layout().addWidget(self.sensor_scroll_area)
-        self.layout_right.addWidget(group_checklist, 1)
+        self.btn_mpa = QPushButton("MPa")
+        self.btn_db = QPushButton("dB")
+        self.btn_dba = QPushButton("dBA")
+        self.metric_group = QButtonGroup(self)
+        self.metric_group.setExclusive(True)
 
-        group_metric = QGroupBox("Metric Selection");
-        group_metric.setObjectName("FlatGroupBox")
-        layout_metric = QVBoxLayout(group_metric);
-        layout_metric.setContentsMargins(10, 15, 10, 15);
-        layout_metric.setSpacing(8)
-
-        metric_container = QHBoxLayout();
-        metric_container.setSpacing(10)
-
-        self.btn_mpa = QPushButton("MPa");
-        self.btn_db = QPushButton("dB");
-        self.btn_dba = QPushButton("dBA");
-
-        self.btn_mpa.setObjectName("MetricButton_MPa")
-        self.btn_db.setObjectName("MetricButton_dB")
-        self.btn_dba.setObjectName("MetricButton_dBA")
-
-        self.btn_mpa.setCheckable(True);
-        self.btn_db.setCheckable(True);
-        self.btn_dba.setCheckable(True);
-
-        self.metric_group = QButtonGroup(self);
-        self.metric_group.setExclusive(True);
-        self.metric_group.addButton(self.btn_mpa, 0)
-        self.metric_group.addButton(self.btn_db, 1)
-        self.metric_group.addButton(self.btn_dba, 2)
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(4)
+        for i, (btn, lbl) in enumerate([(self.btn_mpa, "MPa"), (self.btn_db, "dB"), (self.btn_dba, "dBA")]):
+            btn.setCheckable(True)
+            btn.setFixedWidth(58)
+            btn.setObjectName(f"MetricButton_{lbl}")
+            self.metric_group.addButton(btn, i)
+            btn_layout.addWidget(btn)
 
         self.btn_mpa.clicked.connect(lambda: self.update_metric('Magnitude (MPa)'))
         self.btn_db.clicked.connect(lambda: self.update_metric('dB'))
         self.btn_dba.clicked.connect(lambda: self.update_metric('dBA'))
+        layout_metric.addLayout(btn_layout)
 
-        self.btn_mpa.setChecked(True)
-
-        metric_container.addWidget(self.btn_mpa);
-        metric_container.addWidget(self.btn_db);
-        metric_container.addWidget(self.btn_dba);
-        metric_container.addStretch(1)
-        layout_metric.addLayout(metric_container)
-
-        self.cb_rms = QCheckBox("RMS Scaling (Peak / 1.414)");
-        self.cb_rms.setToolTip("If checked, Magnitude data is converted to RMS before plotting/calculating dB/dBA.")
-        self.cb_rms.stateChanged.connect(self.toggle_rms);
-        layout_metric.addWidget(self.cb_rms)
-        self.cb_log_y = QCheckBox("Log Y Scale");
+        self.cb_rms = QCheckBox("RMS Scale")
+        self.cb_rms.stateChanged.connect(self.toggle_rms)
+        self.cb_log_y = QCheckBox("Log Y")
         self.cb_log_y.setChecked(True)
-        self.cb_log_y.stateChanged.connect(self.toggle_log_y);
+        self.cb_log_y.stateChanged.connect(self.toggle_log_y)
+        layout_metric.addWidget(self.cb_rms)
         layout_metric.addWidget(self.cb_log_y)
         self.layout_right.addWidget(group_metric)
 
-        group_limits = QGroupBox("Axis Limits");
-        group_limits.setObjectName("FlatGroupBox")
-        layout_limits = QGridLayout(group_limits);
-        layout_limits.setContentsMargins(10, 15, 10, 15);
-        layout_limits.setSpacing(10)
-        double_validator = QDoubleValidator()
+        # 2. Axis Limits
+        group_limits = QGroupBox("Limits")
+        group_limits.setObjectName("CompactGroupBox")
+        layout_limits = QGridLayout(group_limits)
+        layout_limits.setContentsMargins(6, 12, 6, 6)
+        layout_limits.setSpacing(4)
 
-        for row, (label_key, edit_key) in enumerate(
-                [("X Min:", "Xmin"), ("X Max:", "Xmax"), ("Y Min:", "Ymin"), ("Y Max:", "Ymax")]):
-            edit = QLineEdit();
-            edit.setValidator(double_validator);
+        validator = QDoubleValidator()
+        limit_keys = [("Xmin", "X Min"), ("Xmax", "X Max"), ("Ymin", "Y Min"), ("Ymax", "Y Max")]
+        for row, (key, lbl) in enumerate(limit_keys):
+            edit = QLineEdit()
+            edit.setValidator(validator)
+            edit.setPlaceholderText("Auto")
+            edit.setFixedWidth(65)
             edit.textChanged.connect(self.draw_plots)
-            edit.setPlaceholderText("Auto");
-            self.axis_edits[edit_key] = edit
-            layout_limits.addWidget(QLabel(label_key), row // 2, (row % 2) * 2)
+            self.axis_edits[key] = edit
+            layout_limits.addWidget(QLabel(key[0]), row // 2, (row % 2) * 2)
             layout_limits.addWidget(edit, row // 2, (row % 2) * 2 + 1)
-
-        layout_limits.setColumnStretch(1, 1);
-        layout_limits.setColumnStretch(3, 1)
         self.layout_right.addWidget(group_limits)
 
+        # 3. Sensor Checklist (Crucial Fix: Initialize checklist_layout here)
+        group_checklist = QGroupBox("Sensors")
+        group_checklist.setObjectName("CompactGroupBox")
+        self.checklist_layout = QVBoxLayout()  # Initialized here
+        self.checklist_layout.setContentsMargins(6, 12, 6, 6)
+        group_checklist.setLayout(self.checklist_layout)
+        self.layout_right.addWidget(group_checklist)
+
+        # 4. File Comparison
+        group_file = QGroupBox("Runs")
+        group_file.setObjectName("CompactGroupBox")
+        layout_file = QVBoxLayout(group_file)
+        layout_file.addWidget(self.file_manager)
+        self.layout_right.addWidget(group_file)
+
         self.scroll_area.setWidget(scroll_content)
-        sidebar_vbox = QVBoxLayout(self.sidebar_right);
-        sidebar_vbox.setContentsMargins(0, 0, 0, 0);
         sidebar_vbox.addWidget(self.scroll_area)
 
     def create_action(self, text, callback, shortcut=None):
@@ -2839,62 +2826,74 @@ class ThemeToggleButton(QToolButton):
         self.setToolTip("Switch to Light Mode" if is_dark_mode else "Switch to Dark Mode")
 
 
+# Replace these methods and the MainWindow setup in your existing script
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.is_dark_mode = False
-        self.setWindowTitle("NVH Analysis Toolkit");
+        self.setWindowTitle("E-Machine NVH Tool")
         self.setWindowState(Qt.WindowState.WindowMaximized)
-        self.central_widget = QWidget();
+
+        # Main Background (Gmail Gray-Blue)
+        self.central_widget = QWidget()
+        self.central_widget.setObjectName("GmailMainBackground")
         self.main_layout = QVBoxLayout(self.central_widget)
-        self.setCentralWidget(self.central_widget);
-        self.main_layout.setContentsMargins(0, 0, 0, 0);
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
-        self._setup_navigation_and_content()
-        self.apply_theme();
-        self.switch_tab(0)
+        self.setCentralWidget(self.central_widget)
 
-    def _setup_navigation_and_content(self):
-        self.nav_bar = QFrame();
-        self.nav_bar.setObjectName("NavBar");
-        self.nav_bar.setFixedHeight(60)
-        self.nav_layout = QHBoxLayout(self.nav_bar);
-        self.nav_layout.setContentsMargins(15, 0, 15, 0);
-        self.nav_layout.setSpacing(10)
+        self._setup_top_navigation()
+        self.apply_theme()
+        self.switch_tab(3)  # Defaulting to Plotting as requested
 
-        self.btn_tf_gen = QPushButton("1. TF Generator")
-        self.btn_force_gen = QPushButton("2. Forcing Analysis");
-        self.btn_scale_sum = QPushButton("3. Scaling & Summation")
-        self.btn_plotting = QPushButton("4. Plotting & Analysis")
+    def _setup_top_navigation(self):
+        # 1. Top Header Row
+        self.nav_bar = QFrame()
+        self.nav_bar.setObjectName("GmailTopNav")
+        self.nav_bar.setFixedHeight(64)
+        self.nav_layout = QHBoxLayout(self.nav_bar)
+        self.nav_layout.setContentsMargins(24, 0, 24, 0)
+        self.nav_layout.setSpacing(8)
 
-        self.btn_tf_gen.setObjectName("TopNavButton");
-        self.btn_force_gen.setObjectName("TopNavButton");
-        self.btn_scale_sum.setObjectName("TopNavButton");
-        self.btn_plotting.setObjectName("TopNavButton");
+        # App Brand
+        brand_lbl = QLabel("E-Machine NVH")
+        brand_lbl.setStyleSheet("font-size: 20px; color: #1F1F1F; font-weight: 400; margin-right: 30px;")
+        self.nav_layout.addWidget(brand_lbl)
+
+        # Tabs in a Row
+        self.btn_tf_gen = QPushButton("TF Generator")
+        self.btn_force_gen = QPushButton("Forcing Analysis")
+        self.btn_scale_sum = QPushButton("Scaling & Summation")
+        self.btn_plotting = QPushButton("Plotting & Analysis")
+
+        self.tabs_list = [self.btn_tf_gen, self.btn_force_gen, self.btn_scale_sum, self.btn_plotting]
+        for btn in self.tabs_list:
+            btn.setObjectName("GmailTopTab")
+            btn.setCheckable(True)
+            btn.setFixedHeight(40)
+            self.nav_layout.addWidget(btn)
 
         self.btn_tf_gen.clicked.connect(lambda: self.switch_tab(0))
         self.btn_force_gen.clicked.connect(lambda: self.switch_tab(1))
         self.btn_scale_sum.clicked.connect(lambda: self.switch_tab(2))
         self.btn_plotting.clicked.connect(lambda: self.switch_tab(3))
 
-        self.nav_layout.addWidget(self.btn_tf_gen)
-        self.nav_layout.addWidget(self.btn_force_gen)
-        self.nav_layout.addWidget(self.btn_scale_sum)
-        self.nav_layout.addWidget(self.btn_plotting);
         self.nav_layout.addStretch(1)
-
-        self.theme_toggle_button = ThemeToggleButton(self.nav_bar);
-        self.theme_toggle_button.clicked.connect(self.toggle_theme)
-        self.nav_layout.addWidget(self.theme_toggle_button)
         self.main_layout.addWidget(self.nav_bar)
 
-        self.content_stack = QStackedWidget();
-        self.main_layout.addWidget(self.content_stack)
+        # 2. Main Content Area (Rounded White Container)
+        self.content_container = QFrame()
+        self.content_container.setObjectName("GmailContentContainer")
+        self.container_layout = QVBoxLayout(self.content_container)
+        self.container_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.content_stack = QStackedWidget()
+        self.container_layout.addWidget(self.content_stack)
 
         self.tf_gen_tab = TFGeneratorApp()
         self.force_gen_tab = NVH_Forcing_App()
         self.scale_sum_tab = TransferFunctionApp()
-        self.scale_sum_tab.set_main_window_ref(self)
         self.plotting_tab = PostProcessingWidget(self)
 
         self.content_stack.addWidget(self.tf_gen_tab)
@@ -2902,185 +2901,174 @@ class MainWindow(QMainWindow):
         self.content_stack.addWidget(self.scale_sum_tab)
         self.content_stack.addWidget(self.plotting_tab)
 
+        # Add some margin around the white container so the gray background shows
+        wrapper_layout = QVBoxLayout()
+        wrapper_layout.setContentsMargins(12, 0, 12, 12)
+        wrapper_layout.addWidget(self.content_container)
+        self.main_layout.addLayout(wrapper_layout)
+
     def switch_tab(self, index):
         self.content_stack.setCurrentIndex(index)
-        buttons = [self.btn_tf_gen, self.btn_force_gen, self.btn_scale_sum, self.btn_plotting]
-        for i, btn in enumerate(buttons):
+        for i, btn in enumerate(self.tabs_list):
+            btn.setChecked(i == index)
             btn.setProperty("active", "true" if i == index else "false")
             btn.style().polish(btn)
 
-        current_widget = self.content_stack.currentWidget()
-        if hasattr(current_widget, 'set_theme'):
-            current_widget.set_theme(self.is_dark_mode)
-
-    def toggle_theme(self):
-        self.is_dark_mode = not self.is_dark_mode
-        self.apply_theme()
-        if hasattr(self.plotting_tab.canvas, 'set_theme'):
-            self.plotting_tab.canvas.set_theme(self.is_dark_mode)
-        if hasattr(self.force_gen_tab, 'set_theme'):
-            self.force_gen_tab.set_theme(self.is_dark_mode)
-
     def apply_theme(self):
-        if self.is_dark_mode:
-            self.setStyleSheet(self._get_dark_mode_style_navy_accent())
-        else:
-            self.setStyleSheet(self._get_light_mode_style_navy_accent())
-        self.theme_toggle_button.set_dark_mode(self.is_dark_mode)
+        self.setStyleSheet(self._get_gmail_light_style())
 
-        for widget in [self.central_widget, self.nav_bar, self.content_stack]:
-            widget.style().unpolish(widget);
-            widget.style().polish(widget)
-        self.switch_tab(self.content_stack.currentIndex())
-
-    def _get_dark_mode_style_navy_accent(self):
-        C_BG_DARK = "#1E1E1E";
-        C_BG_LIFTED = "#2D2D30";
-        C_ACCENT_NAVY = "#004D8A";
-        C_BORDER_FLAT = "#444444"
-        C_TEXT_LIGHT = "white";
-        C_TEXT_SECONDARY = "#BBBBBB";
-        C_BORDER_ACTIVE = "#E4002B";
-        C_BORDER_INACTIVE = "#1A4F99"
-        C_METRIC_BUTTON = "#3A3A3A";
-        CORNER_RADIUS = "4px";
-        font_stack = "'Segoe UI', 'Arial', sans-serif"
-        CHECKMARK_SVG = 'PHN2ZyB3aWR0aD0iMTQiIGhlaWdodD0iMTQiIHZpZXdCb3g9IjAgMCAxNCAxNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvczvnIj48cGF0aCBkPSJtMTIgMy03IDcgLTMtMy0yIDIgNSA1IDktOXoiIGZpbGw9IiNmZmYiLz48L3N2Zz4='
-        return f"""
-        * {{ font-family: {font_stack}; font-size: 10pt; }}
-        QMainWindow, QWidget, QScrollArea, QStackedWidget {{ background-color: {C_BG_DARK}; color: {C_TEXT_LIGHT}; }}
-        QFrame#NavBar {{ background-color: {C_BG_LIFTED}; border-bottom: 1px solid {C_BORDER_FLAT}; }}
-        QPushButton#TopNavButton {{ background-color: {C_BG_LIFTED}; border: 1px solid {C_BORDER_INACTIVE}; color: {C_TEXT_SECONDARY}; padding: 8px 15px; border-radius: 0px; font-weight: 500; min-height: 30px; }}
-        QPushButton#TopNavButton:hover {{ background-color: #3A3A3A; color: {C_TEXT_LIGHT}; }}
-        QPushButton#TopNavButton[active="true"] {{ background-color: {C_BG_DARK}; color: {C_TEXT_LIGHT}; font-weight: 600; border: 1px solid {C_BORDER_ACTIVE}; border-bottom: none; }}
-        #ThemeToggleButton {{ background-color: {C_BG_DARK}; border: 1px solid {C_BORDER_FLAT}; color: {C_TEXT_LIGHT}; border-radius: {CORNER_RADIUS}; padding: 5px; }}
-        #ThemeToggleButton:hover {{ background-color: #3A3A3A; }}
-        QWidget#PlotOptionsSidebar {{ background-color: {C_BG_LIFTED}; border: 1px solid {C_BORDER_FLAT}; border-radius: {CORNER_RADIUS}; }}
-
-        QGroupBox#FlatGroupBox {{ border: 1px solid {C_BORDER_FLAT}; border-radius: {CORNER_RADIUS}; background-color: {C_BG_LIFTED}; margin-top: 10px; padding-top: 5px; }}
-        QGroupBox#FlatGroupBox::title {{ subcontrol-origin: margin; subcontrol-position: top left; padding: 0 5px; color: {C_ACCENT_NAVY}; font-weight: 600; left: 15px; }}
-
-        QFrame#PlotFrame {{ background-color: {C_BG_DARK}; border: 1px solid {C_BORDER_FLAT}; border-radius: {CORNER_RADIUS}; }}
-        QLineEdit {{ border: 1px solid {C_BORDER_FLAT}; background: {C_BG_DARK}; color: {C_TEXT_LIGHT}; border-radius: 2px; }}
-        QLineEdit:read-only {{ background-color: {C_BG_LIFTED}; color: {C_TEXT_SECONDARY}; }}
-        QListWidget#PlotListWidget {{ background: {C_BG_DARK}; color: {C_TEXT_LIGHT}; }}
-        QTextEdit#LogTextEdit {{ background-color: {C_BG_DARK}; border: 1px solid {C_BORDER_FLAT}; border-radius: {CORNER_RADIUS}; }}
-        QTextEdit {{ background-color: {C_BG_DARK}; border: 1px solid {C_BORDER_FLAT}; border-radius: {CORNER_RADIUS}; }}
-        #PrimaryButton {{ background-color: {C_ACCENT_NAVY}; border: none; color: white; border-radius: {CORNER_RADIUS}; }}
-        #PrimaryButton:hover {{ background-color: #003B6F; }}
-        #SecondaryButton, #SecondaryButton_Browse {{ background-color: {C_BG_DARK}; border: 1px solid {C_BORDER_FLAT}; color: {C_TEXT_LIGHT}; padding: 6px 15px; border-radius: {CORNER_RADIUS}; font-size: 10pt; }}
-        #SecondaryButton:hover, #SecondaryButton_Browse:hover {{ background-color: #3A3A3A; border: 1px solid {C_ACCENT_NAVY}; color: {C_TEXT_LIGHT}; }}
-        #SecondaryButton_Browse {{ padding: 5px 10px; }}
-        QCheckBox {{ min-width: 150px; }}
-        QCheckBox::indicator:checked {{ background-color: {C_ACCENT_NAVY}; border: 1px solid {C_ACCENT_NAVY}; image: url(data:image/svg+xml;base64,{CHECKMARK_SVG}); }}
-        QRadioButton::indicator:checked {{ border: 4px solid {C_BG_LIFTED}; background-color: {C_ACCENT_NAVY}; }}
-        QComboBox {{ border: 1px solid {C_BORDER_FLAT}; background-color: {C_BG_DARK}; color: {C_TEXT_LIGHT}; padding: 5px; border-radius: 2px; }}
-        QComboBox::drop-down {{ border: none; }}
-        QTabWidget::pane {{ border: 1px solid {C_BORDER_FLAT}; background: {C_BG_DARK}; border-radius: 4px; }}
-        QTabBar::tab {{ background: {C_BG_LIFTED}; border: 1px solid {C_BORDER_FLAT}; padding: 8px 15px; margin-right: -1px; color: {C_TEXT_SECONDARY}; }}
-        QTabBar::tab:selected {{ background: {C_BG_DARK}; border-bottom-color: {C_BG_DARK}; color: {C_TEXT_LIGHT}; font-weight: bold; }}
-
-        QPushButton[objectName^="MetricButton"] {{ min-width: 50px; padding: 5px; border: 1px solid {C_BORDER_INACTIVE}; border-radius: {CORNER_RADIUS}; background-color: {C_METRIC_BUTTON}; color: {C_TEXT_LIGHT}; }}
-        QPushButton[objectName^="MetricButton"]:hover {{ background-color: #444444; }}
-        QPushButton[objectName^="MetricButton"][selected="true"] {{ border: 2px solid {C_BORDER_ACTIVE}; background-color: #4A4A4A; font-weight: bold; }}
-
-        NVH_Forcing_App QPushButton#btn_load, NVH_Forcing_App QPushButton#OptistructButton, NVH_Forcing_App QPushButton#btn_apply {{ background-color: {C_ACCENT_NAVY}; color: white; font-weight: bold; min-height: 40px; border: none; border-radius: {CORNER_RADIUS}; }}
-        NVH_Forcing_App QPushButton#btn_load:hover, NVH_Forcing_App QPushButton#OptistructButton:hover, NVH_Forcing_App QPushButton#btn_apply:hover {{ background-color: #003B6F; }}
-        #OrderForcingProcessButton {{ background-color: #004D8A; color: white; font-weight: bold; }}
-        #OrderForcingProcessButton:hover {{ background-color: #003B6F; border-color: #003B6F; }}
-        QTableView {{ background-color: {C_BG_DARK}; gridline-color: #3A3A3A; border: none; selection-background-color: #004D8A; selection-color: white; }}
-        QHeaderView::section {{ background-color: {C_BG_LIFTED}; padding: 5px; border: none; border-bottom: 2px solid #3A3A3A; border-right: 1px solid #3A3A3A; font-weight: bold; color: {C_TEXT_LIGHT}; }}
-
-        QDialog QGroupBox#MappingGroupBox {{ border: 1px solid {C_BORDER_FLAT}; border-radius: {CORNER_RADIUS}; padding: 10px; margin-top: 15px; background-color: {C_BG_LIFTED}; }}
-        QDialog QLabel#DialogInstructionLabel {{ font-weight: 500; font-size: 11pt; color: {C_TEXT_LIGHT}; }}
+    def _get_gmail_light_style(self):
         """
-
-    def _get_light_mode_style_navy_accent(self):
-        C_BG_LIGHT = "#F0F0F0";
-        C_BG_LIFTED = "white";
-        C_ACCENT_NAVY = "#004D8A";
-        C_BORDER_FLAT = "#CCCCCC"
-        C_TEXT_DARK = "black";
-        C_TEXT_SECONDARY = "#666666";
-        C_TEXT_DISABLED = "#AAAAAA"
-        C_BORDER_ACTIVE = "#E4002B";
-        C_BORDER_INACTIVE = "#1A4F99"
-        C_METRIC_BUTTON_BG = "#E8E8E8";
-        CORNER_RADIUS = "4px";
-        font_stack = "'Segoe UI', 'Arial', sans-serif"
-        CHECKMARK_SVG_NAVY = 'PHN2ZyB3aWR0aD0iMTQiIGhlaWdodD0iMTQiIHZpZXdCb3g9IjAgMCAxNCAxNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvczvnIj48cGF0aCBkPSJtMTIgMy03IDcgLTMtMy0yIDIgNSA1IDktOXoiIGZpbGw9IiMwMDQ3NzkiLz48L3N2Zz4='
+        Returns the CSS style sheet for the Gmail Light (Material 3) theme.
+        Features top-navigation tabs and a streamlined, compact right sidebar.
+        """
+        # Gmail Color Palette
+        G_BG = "#F6F8FC"  # Light blue-gray main background
+        G_SURFACE = "#FFFFFF"  # Pure white for content card
+        G_HOVER = "#E1E3E1"  # Grey hover state
+        G_ACTIVE_BG = "#C2E7FF"  # Light blue for active tabs
+        G_ACTIVE_TEXT = "#001D35"  # Dark blue for active text
+        G_TEXT = "#444746"  # Standard Gmail text grey
+        G_PRIMARY = "#0B57D0"  # Google Primary Blue
+        G_BORDER = "#E0E0E0"  # Subtle border grey
 
         return f"""
-        * {{ font-family: {font_stack}; font-size: 10pt; }}
-        QMainWindow, QWidget, QScrollArea, QStackedWidget {{ background-color: {C_BG_LIGHT}; color: {C_TEXT_DARK}; }}
-        QFrame#NavBar {{ background-color: {C_BG_LIFTED}; border-bottom: 1px solid {C_BORDER_FLAT}; }}
-        QPushButton#TopNavButton {{ background-color: {C_BG_LIFTED}; border: 1px solid {C_BORDER_INACTIVE}; color: {C_TEXT_SECONDARY}; padding: 8px 15px; border-radius: 0px; text-align: center; margin: 0px; font-weight: 500; min-height: 30px; }}
-        QPushButton#TopNavButton:hover {{ background-color: #E8E8E8; color: {C_TEXT_DARK}; }}
-        QPushButton#TopNavButton[active="true"] {{ background-color: {C_BG_LIGHT}; color: {C_TEXT_DARK}; font-weight: 600; border: 1px solid {C_BORDER_ACTIVE}; border-bottom: none; }}
-        #ThemeToggleButton {{ background-color: {C_BG_LIGHT}; border: 1px solid {C_BORDER_FLAT}; color: {C_TEXT_DARK}; border-radius: {CORNER_RADIUS}; padding: 5px; }}
-        #ThemeToggleButton:hover {{ background-color: #E8E8E8; }}
+        /* Global Defaults */
+        * {{
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-size: 12px;
+            color: {G_TEXT};
+        }}
 
-        QDialog, QColorDialog {{ background-color: {C_BG_LIFTED}; color: {C_TEXT_DARK}; }}
-        QDialog QLabel#DialogInstructionLabel {{ font-weight: 500; font-size: 11pt; color: {C_TEXT_DARK}; }}
-        QDialog QGroupBox#MappingGroupBox {{ border: 1px solid {C_BORDER_FLAT}; border-radius: {CORNER_RADIUS}; padding: 10px; margin-top: 15px; background-color: {C_BG_LIFTED}; }}
-        QDialog QGroupBox::title {{ subcontrol-origin: margin; subcontrol-position: top center; padding: 0 5px; color: {C_ACCENT_NAVY}; font-weight: 600; }}
-        QDialog QScrollArea#DialogScrollArea {{ border: 1px solid {C_BORDER_FLAT}; border-radius: {CORNER_RADIUS}; }}
+        QWidget#GmailMainBackground {{
+            background-color: {G_BG};
+        }}
 
-        QMenu {{ background-color: {C_BG_LIFTED}; color: {C_TEXT_DARK}; border: 1px solid {C_BORDER_FLAT}; border-radius: 4px; padding: 5px; }}
-        QMenu::item:selected {{ background-color: #E8E8E8; color: {C_TEXT_DARK}; border-radius: 2px; }}
+        /* Top Navigation Styling */
+        QFrame#GmailTopNav {{
+            background-color: {G_BG};
+            border: none;
+        }}
 
-        QWidget#PlotOptionsSidebar {{ background-color: {C_BG_LIFTED}; border: 1px solid {C_BORDER_FLAT}; border-radius: {CORNER_RADIUS}; }}
-        QLabel#SidebarTitle {{ color: {C_TEXT_DARK}; font-weight: bold; }}
+        QPushButton#GmailTopTab {{
+            border: none;
+            background-color: transparent;
+            border-radius: 20px;
+            padding: 0 18px;
+            height: 40px;
+            color: {G_TEXT};
+            font-weight: 500;
+        }}
 
-        QGroupBox#FlatGroupBox {{ border: 1px solid {C_BORDER_FLAT}; border-radius: {CORNER_RADIUS}; margin-top: 10px; background-color: {C_BG_LIFTED}; padding: 5px; }}
-        QGroupBox#FlatGroupBox::title {{ subcontrol-origin: margin; subcontrol-position: top left; padding: 0 5px; color: {C_ACCENT_NAVY}; font-weight: 600; left: 15px; }}
+        QPushButton#GmailTopTab:hover {{
+            background-color: {G_HOVER};
+        }}
 
-        QLabel#InfoLabel {{ font-style: italic; color: {C_TEXT_SECONDARY}; }}
-        QFrame#ControlPanel, QFrame#PlotFrame {{ background-color: {C_BG_LIGHT}; border: 1px solid {C_BORDER_FLAT}; border-radius: {CORNER_RADIUS}; }}
-        QTextEdit#LogTextEdit {{ border: 1px solid {C_BORDER_FLAT}; border-radius: {CORNER_RADIUS}; background-color: {C_BG_LIGHT}; padding: 8px; }}
-        QTextEdit {{ border: 1px solid {C_BORDER_FLAT}; border-radius: {CORNER_RADIUS}; background-color: {C_BG_LIGHT}; padding: 8px; }}
+        QPushButton#GmailTopTab[active="true"] {{
+            background-color: {G_ACTIVE_BG};
+            color: {G_ACTIVE_TEXT};
+            font-weight: 600;
+        }}
 
-        QLineEdit {{ border: 1px solid {C_BORDER_FLAT}; padding: 5px 8px; background: {C_BG_LIGHT}; color: {C_TEXT_DARK}; border-radius: 2px; min-height: 28px; selection-background-color: {C_ACCENT_NAVY}; }}
-        QLineEdit:read-only {{ background-color: {C_BG_LIGHT}; color: {C_TEXT_SECONDARY}; }}
-        QLineEdit:focus {{ border: 1px solid {C_ACCENT_NAVY}; }}
-        QComboBox {{ border: 1px solid {C_BORDER_FLAT}; background-color: {C_BG_LIGHT}; color: {C_TEXT_DARK}; padding: 5px; border-radius: 2px; }}
-        QComboBox::drop-down {{ border: none; }}
-        QComboBox::down-arrow {{ image: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvczvnIj48cGF0aCBkPSJtMS41IDQuNWw2LjUgNyA2LjUtN3oiIGZpbGw9IiMwMDAiLz48L3N2Zz4=); }}
+        /* Main Content Card */
+        QFrame#GmailContentContainer {{
+            background-color: {G_SURFACE};
+            border-radius: 28px;
+            border: 1px solid {G_BORDER};
+        }}
 
-        QListWidget#PlotListWidget {{ border: 1px solid {C_BORDER_FLAT}; border-radius: {CORNER_RADIUS}; background: {C_BG_LIGHT}; color: {C_TEXT_DARK}; padding: 5px; }}
-        QListWidget::item:selected {{ background: #E8E8E8; color: {C_TEXT_DARK}; border-radius: 2px; }}
+        /* Streamlined Right Sidebar */
+        QWidget#PlotOptionsSidebar {{
+            background-color: {G_SURFACE};
+            border-left: 1px solid {G_BORDER};
+            border-top-right-radius: 28px;
+            border-bottom-right-radius: 28px;
+        }}
 
-        QCheckBox, QRadioButton {{ spacing: 8px; padding: 5px 0; }}
-        QCheckBox {{ min-width: 150px; }}
-        QCheckBox::indicator, QRadioButton::indicator {{ width: 14px; height: 14px; border: 1px solid {C_BORDER_FLAT}; background-color: {C_BG_LIGHT}; }}
-        QCheckBox::indicator {{ border-radius: 2px; }}
-        QRadioButton::indicator {{ border-radius: 7px; }}
-        QCheckBox::indicator:checked {{ background-color: {C_ACCENT_NAVY}; border: 1px solid {C_ACCENT_NAVY}; image: url(data:image/svg+xml;base64,{CHECKMARK_SVG_NAVY}); }}
-        QRadioButton::indicator:checked {{ border: 4px solid {C_BG_LIFTED}; background-color: {C_ACCENT_NAVY}; }}
-        QCheckBox:disabled, QRadioButton:disabled, QLabel:disabled {{ color: {C_TEXT_DISABLED}; }}
+        QScrollArea#ControlScrollArea {{
+            background-color: transparent;
+        }}
 
-        #PrimaryButton {{ background-color: {C_ACCENT_NAVY}; border: none; color: white; padding: 12px 15px; font-size: 11pt; border-radius: {CORNER_RADIUS}; font-weight: 600; }}
-        #PrimaryButton:hover {{ background-color: #003B6F; }}
-        #SecondaryButton, #SecondaryButton_Browse {{ background-color: {C_BG_LIGHT}; border: 1px solid {C_BORDER_FLAT}; color: {C_TEXT_DARK}; padding: 6px 15px; border-radius: {CORNER_RADIUS}; font-size: 10pt; }}
-        #SecondaryButton:hover, #SecondaryButton_Browse:hover {{ background-color: #E8E8E8; border: 1px solid {C_ACCENT_NAVY}; color: {C_ACCENT_NAVY}; }}
-        #SecondaryButton_Browse {{ padding: 5px 10px; }}
-        #SecondaryButton_Add {{ background-color: #E8E8E8; border: none; color: {C_TEXT_DARK}; font-weight: 500; padding: 6px 10px; border-radius: {CORNER_RADIUS}; }}
-        #SecondaryButton_Add:hover {{ background-color: #DDDDDD; }}
+        /* Compact GroupBoxes for Narrow Sidebar */
+        QGroupBox#CompactGroupBox {{
+            border: 1px solid #F0F0F0;
+            border-radius: 12px;
+            margin-top: 10px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #717171;
+            background-color: {G_SURFACE};
+        }}
 
-        QPushButton[objectName^="MetricButton"] {{ min-width: 50px; padding: 5px; border: 1px solid {C_ACCENT_NAVY}; border-radius: {CORNER_RADIUS}; background-color: {C_BG_LIFTED}; color: {C_TEXT_DARK}; }}
-        QPushButton[objectName^="MetricButton"]:hover {{ background-color: #F8F8F8; }}
-        QPushButton[objectName^="MetricButton"][selected="true"] {{ border: 2px solid {C_BORDER_ACTIVE}; background-color: #F0F0F0; font-weight: bold; }}
+        QGroupBox#CompactGroupBox::title {{
+            subcontrol-origin: margin;
+            subcontrol-position: top left;
+            left: 10px;
+            padding: 0 3px;
+        }}
 
-        NVH_Forcing_App QPushButton#btn_load, NVH_Forcing_App QPushButton#OptistructButton, NVH_Forcing_App QPushButton#btn_apply {{ background-color: {C_ACCENT_NAVY}; color: white; font-weight: bold; min-height: 40px; border: none; border-radius: {CORNER_RADIUS}; }}
-        NVH_Forcing_App QPushButton#btn_load:hover, NVH_Forcing_App QPushButton#OptistructButton:hover, NVH_Forcing_App QPushButton#btn_apply:hover {{ background-color: #003B6F; }}
+        /* Gmail Pill-Style Buttons */
+        #PrimaryButton {{
+            background-color: {G_PRIMARY};
+            color: white;
+            border-radius: 20px;
+            padding: 10px 24px;
+            font-weight: 600;
+            border: none;
+        }}
 
-        #OrderForcingProcessButton {{ background-color: #2b5797; color: white; font-weight: bold; }}
-        #OrderForcingProcessButton:hover {{ background-color: #1a4170; border-color: #1a4170; }}
-        QTableView {{ background-color: #fff; gridline-color: #f0f0f0; border: none; selection-background-color: #e6f7ff; selection-color: #000; }}
-        QHeaderView::section {{ background-color: #fafafa; padding: 5px; border: none; border-bottom: 2px solid #eee; border-right: 1px solid #eee; font-weight: bold; color: #666; }}
-        QTabWidget::pane {{ border: 1px solid {C_BORDER_FLAT}; background: {C_BG_LIFTED}; border-radius: 4px; }}
-        QTabBar::tab {{ background: #f0f0f0; border: 1px solid {C_BORDER_FLAT}; padding: 8px 15px; margin-right: -1px; color: {C_TEXT_SECONDARY}; }}
-        QTabBar::tab:selected {{ background: {C_BG_LIFTED}; border-bottom-color: {C_BG_LIFTED}; color: #2b5797; font-weight: bold; }}
+        #PrimaryButton:hover {{
+            background-color: #0842A0;
+        }}
+
+        #SecondaryButton_Browse, #SecondaryButton_Add {{
+            background-color: {G_SURFACE};
+            border: 1px solid #DADCE0;
+            border-radius: 18px;
+            padding: 5px 14px;
+            color: {G_PRIMARY};
+            font-weight: 500;
+        }}
+
+        /* Input Controls */
+        QLineEdit {{
+            background-color: {G_SURFACE};
+            border: 1px solid #DADCE0;
+            border-radius: 4px;
+            padding: 6px;
+            font-size: 11px;
+        }}
+
+        QLineEdit:focus {{
+            border: 2px solid {G_PRIMARY};
+        }}
+
+        QCheckBox {{
+            font-size: 11px;
+            spacing: 8px;
+        }}
+
+        /* Compact List/Table Elements */
+        QListWidget#PlotListWidget {{
+            border: 1px solid #F0F0F0;
+            border-radius: 8px;
+            background-color: #FAFAFA;
+            font-size: 11px;
+        }}
+
+        QListWidget::item:selected {{
+            background-color: {G_ACTIVE_BG};
+            color: {G_ACTIVE_TEXT};
+            border-radius: 4px;
+        }}
+
+        QHeaderView::section {{
+            background-color: #F8F9FA;
+            border: none;
+            border-bottom: 1px solid {G_BORDER};
+            padding: 6px;
+            font-weight: 600;
+        }}
         """
 
 
